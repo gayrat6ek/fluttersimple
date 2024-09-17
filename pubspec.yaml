@@ -9,19 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_blue: ^0.8.0
-  
-  # For working with assets (e.g., loading images)
-  flutter_svg: ^0.22.0
-  
-  # For using base64 encoding/decoding for image and data handling
-  crypto: ^3.0.1
-  
-  # Package to enable handling image data and manipulation (optional if needed)
-  image: ^3.0.1
-
-  # Bluetooth printer support (if you're using bluetooth_print_plus for printing)
-
+  esc_pos_utils: ^1.0.0 # or the latest version
+  flutter_blue: ^0.8.0 # Keep your existing packages
+  image: ^3.0.1 # For manipulating image files
 
 dev_dependencies:
   flutter_test:

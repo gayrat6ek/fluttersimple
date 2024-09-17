@@ -1,7 +1,9 @@
-import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter_blue/flutter_blue.dart';
+import 'dart:convert'; // For Base64 encoding
+import 'dart:typed_data'; // For handling byte data
 import 'package:flutter/services.dart'; // For loading image assets
+import 'package:flutter_blue/flutter_blue.dart';
+import 'package:image/image.dart' as img; // For handling image processing
+import 'package:esc_pos_utils/esc_pos_utils.dart'; // For ESC/POS commands
 
 class BluetoothService {
   FlutterBlue flutterBlue = FlutterBlue.instance;
@@ -10,7 +12,7 @@ class BluetoothService {
 
   // Function to start scanning for Bluetooth devices
   void startScan(Function(List<BluetoothDevice>) onScanResult) {
-    devicesList.clear();
+    devicesList.clear(); // Clear the list of devices before scanning
 
     flutterBlue.startScan(timeout: Duration(seconds: 4));
 
@@ -21,7 +23,7 @@ class BluetoothService {
           devicesList.add(device);
         }
       }
-      onScanResult(devicesList);
+      onScanResult(devicesList); // Pass the list of devices back to the UI
     });
 
     flutterBlue.stopScan();
@@ -52,6 +54,7 @@ class BluetoothService {
       return;
     }
 
+    // Write data to the Bluetooth device
     final services = await connectedDevice!.discoverServices();
     for (var service in services) {
       for (var characteristic in service.characteristics) {
@@ -59,10 +62,6 @@ class BluetoothService {
           try {
             await characteristic.write(data);
             print('Data sent successfully');
-            // Read the response if the characteristic supports notifications or reading
-            if (characteristic.properties.read || characteristic.properties.notify) {
-              await _readResponse(characteristic);
-            }
           } catch (e) {
             print('Failed to send data: $e');
           }
@@ -73,26 +72,41 @@ class BluetoothService {
     print('No writable characteristic found');
   }
 
-  // Function to read response from a Bluetooth characteristic
-  Future<void> _readResponse(BluetoothCharacteristic characteristic) async {
-    try {
-      // Read the data from the characteristic
-      final response = await characteristic.read();
-      final responseString = utf8.decode(response);
-      print('Response received: $responseString');
-    } catch (e) {
-      print('Failed to read response: $e');
-    }
-  }
-
   // Function to convert image to Base64 and then to Uint8List
   Future<Uint8List> imageToUint8List(String imagePath) async {
     final byteData = await rootBundle.load(imagePath);
     return byteData.buffer.asUint8List();
   }
 
-  Future<Uint8List> base64ToUint8List(String base64String) async {
-    final bytes = base64Decode(base64String);
-    return Uint8List.fromList(bytes);
+  // Function to print image as bitmap using ESC/POS commands
+  Future<void> printImage(String imagePath) async {
+    if (connectedDevice == null) {
+      print('No device connected');
+      return;
+    }
+
+    final ByteData data = await rootBundle.load(imagePath);
+    final Uint8List bytes = data.buffer.asUint8List();
+
+    // Convert the image to a format the printer can understand (Monochrome)
+    img.Image? image = img.decodeImage(bytes);
+    if (image == null) {
+      print('Failed to load image');
+      return;
+    }
+
+    // Convert the image to monochrome (black and white)
+    final img.Image resizedImage = img.copyResize(image, width: 384); // Resize to printer's width
+    final img.Image monoImage = img.grayscale(resizedImage);
+
+    // Prepare ESC/POS commands
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm80, profile);
+    final List<int> escPosCommands = [];
+
+    escPosCommands.addAll(generator.imageRaster(monoImage));
+
+    // Send the ESC/POS commands to the Bluetooth device
+    await sendData(Uint8List.fromList(escPosCommands));
   }
 }

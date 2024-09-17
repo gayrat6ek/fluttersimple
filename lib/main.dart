@@ -42,14 +42,13 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
     });
   }
 
-  Future<void> _sendImage() async {
-    const imagePath = 'assets/sample_image.png'; // Update this path to your image location
-    final byteData = await rootBundle.load(imagePath);
-    final base64Image = base64Encode(byteData.buffer.asUint8List());
+  void _sendImage() async {
+  const imagePath = 'assets/sample_image.png'; // Update this path to your image location
 
-    final Uint8List imageData = await _bluetoothService.base64ToUint8List(base64Image);
-    await _bluetoothService.sendData(imageData);
-  }
+  // Call the new printImage method to send the image to the printer
+  await _bluetoothService.printImage(imagePath);
+}
+
 
   @override
   Widget build(BuildContext context) {
